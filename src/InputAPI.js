@@ -227,44 +227,18 @@ var InputAPI = Class.$extend(
         if (this.container)
         {
             //Register key events.
-            //If tab index is present use given container. Otherwise use document.
             this.registerKeyboardEvents(this.container);
             this.registerMouseEvents(this.container);
-
-            /*if (this.container[0].tabIndex)
-            {
-                $(this.container).keydown(function(e) {
-                    that.onKeyPressInternal(e);
-                });
-                $(this.container).keyup(function(e) {
-                    that.onKeyReleaseInternal(e);
-                });
-            }
-            else
-            {
-                //Register key events. Key events are bind to document.
-                $(document).keydown(function(e) {
-                    that.onKeyPressInternal(e);
-                });
-                $(document).keyup(function(e) {
-                    that.onKeyReleaseInternal(e);
-                });
-            }
-
-            //Register mouse events
-            $(this.container).mousemove(function(e) {
-                that.onMouseMoveInternal(e);
-            });
-            $(this.container).mousedown(function(e) {
-                that.onMousePressInternal(e);
-            });
-            $(this.container).mouseup(function(e) {
-                that.onMouseReleaseInternal(e);
-            });
-            $(this.container).mousewheel(function(e, delta, deltaX, deltaY) {
-                that.onMouseWheelInternal(e, delta, deltaX, deltaY);
-            });*/
         }
+
+        //InputStates
+        this.inputStates = [];
+        //Pending inputstates for combined keys and mouse events or time slot
+        this.pendingInputStates = {};
+
+        $(window).blur(function(e) {
+            that.onBlurInternal(e);
+        });
 
         this.postInit();
     },
@@ -325,6 +299,115 @@ var InputAPI = Class.$extend(
             catch(e)
             {
                 console.log("[InputAPI:] Plugin " + InputAPI.plugins[i].name + " reset() threw exception: " + e);
+            }
+        }
+
+        for (var i = 0; i < this.inputStates.length; i++)
+        {
+            try
+            {
+                this.inputStates[i].reset();
+            }
+            catch(e)
+            {
+                console.log("[InputAPI:] InputState " + this.inputStates[i].name + " reset() threw exception: " + e);
+            }
+        }
+
+    },
+
+    onBlurInternal : function(e)
+    {
+        //Clear keyboard pressed keys when document has no focus
+        this.keyboard.pressed = {};
+    },
+
+    registerInputState : function(inState)
+    {
+        if (!(inState instanceof InputState))
+        {
+            console.log("[InputAPI]: Cannot register input state that is not of type InputState");
+            return false;
+        }
+
+        if (!inState.name)
+        {
+            console.log("[InputAPI]: Cannot register input state that has no name");
+            return false;
+        }
+
+        if (inState.keyBindings.length == 0 && inState.mouseDown == -1)
+        {
+            console.log("[InputAPI]: Cannot register input state that has no key or mouse bindings");
+            return false;
+        }
+
+        if (inState.priority > 100 || inState.priority < 0)
+        {
+            console.log("[InputAPI]: Input state priority must be between 0 and 100");
+            return false;
+        }
+
+        if (inState.timeslot > 5000 || inState.timeslot < 0)
+        {
+            console.log("[InputAPI]: Input state time slot must be between 0 and 5000");
+            return false;
+        }
+
+        if (this.inputStates.length > 0)
+        {
+            for (var i = 0; i < this.inputStates.length; i++) {
+                if (this.inputStates[i].name === inState.name)
+                {
+                    console.log("[InputAPI]: Input state with same name already exists");
+                    return false;
+                }
+            }
+        }
+
+        inState.actionSignal = new this.Signal();
+        this.inputStates.push(inState);
+        this.inputStates.sort(this.sortInputStates);
+
+        console.log("[InputAPI] registered new input state "+inState.name);
+
+        return inState.actionSignal;
+    },
+
+    updateInputState : function(inState)
+    {
+        if (this.inputStates.length == 0)
+        {
+            console.log("[InputAPI]: Cannot update input state. Please register it first");
+            return false;
+        }
+
+        for (var i = 0; i < this.inputStates.length; i++) {
+            if (this.inputStates[i].name === inState.name)
+            {
+                this.inputStates[i].keyBindings = inState.keyBindings;
+                this.inputStates[i].mouseDown = inState.mouseDown;
+                this.inputStates[i].timeslot = inState.timeslot;
+                this.inputStates[i].priority = inState.priority;
+                this.inputStates[i].multiplier = inState.multiplier;
+                this.inputStates.sort(this.sortInputStates);
+                console.log("[InputAPI]: Input state "+inState.name+" updated");
+                return true;
+            }
+        }
+
+        console.log("[InputAPI]: Cannot update input state. Input state with given name not found.");
+        return false;
+    },
+
+    clearPendingInputStates : function()
+    {
+        if (this.pendingInputStates && Object.keys(this.pendingInputStates).length > 0)
+        for (var key in this.pendingInputStates)
+        {
+            if (this.pendingInputStates[key].timeslot != 0 && this.pendingInputStates[key].timeslot < Date.now())
+            {
+                delete this.pendingInputStates[key];
             }
         }
     },
@@ -425,7 +508,6 @@ var InputAPI = Class.$extend(
         this.mouse.middleDown = false;
 
         this.mouseEvent.dispatch(this.mouse);
-        this.mouseClick.dispatch(this.mouse);
         this.mouseRelease.dispatch(this.mouse);
     },
 
@@ -481,6 +563,117 @@ var InputAPI = Class.$extend(
             this.mouse.rightDown  = (event.which === 3);
             this.mouse.middleDown = (event.which === 2);
         }
+
+        this.clearPendingInputStates();
+
+        if (event.type === "mousedown")
+        {
+            //Handle input states
+            if (this.inputStates.length > 0)
+            {
+                for (var i = 0; i < this.inputStates.length; i++) {
+
+                    if (this.inputStates[i].mouseDown == -1)
+                        continue;
+
+                    var mdown = 1; //leftDown
+                    if (this.mouse.rightDown)
+                        mdown = 2;
+                    if (this.mouse.middleDown)
+                        mdown = 3;
+
+                    var istate = this.inputStates[i];
+                    var iname = istate.name;
+
+                    if (mdown == istate.mouseDown)
+                    {
+
+                        if (this.pendingInputStates && this.pendingInputStates[iname])
+                        {
+                            this.pendingInputStates[iname].mouse = true;
+                            if (this.pendingInputStates[iname].keyboard)
+                            {
+                                //Count multiplier
+                                if (istate.multiplier > 0)
+                                {
+                                    this.pendingInputStates[iname].multiplier++;
+                                    if (this.pendingInputStates[iname].multiplier == istate.multiplier)
+                                    {
+                                        istate.actionSignal.dispatch(this.mouse); //Dispatch
+                                        delete this.pendingInputStates[iname];
+                                    }
+                                }
+                                else
+                                {
+                                    istate.actionSignal.dispatch(this.mouse); //Dispatch
+                                }
+
+                            }
+                        }
+                        else
+                        {
+                            //No key bindings, no timeslot
+                            if (istate.keyBindings.length == 0 && istate.multiplier == 0) // && istate.timeslot == 0)
+                            {
+                                istate.actionSignal.dispatch(this.mouse); //Dispatch
+                            }
+
+                            if (istate.keyBindings.length > 0 || istate.timeslot > 0)
+                            {
+                                //Add to pendings
+                                var imouse = true;
+                                var ikeyboard = true;
+                                var itimeslot = 0;
+                                var imultiplier = 0;
+                                if (istate.multiplier > 0)
+                                    imultiplier = 1;
+
+                                if (istate.timeslot > 0)
+                                {
+                                    itimeslot = Date.now();
+                                    itimeslot += istate.timeslot;
+                                }
+
+                                if (istate.keyBindings.length > 0)
+                                    ikeyboard = false;
+
+                                this.pendingInputStates[iname] = { mouse : imouse, keyboard : ikeyboard, timeslot : itimeslot, multiplier : imultiplier, inputstate: istate};
+                            }
+                        }
+                    }
+                    else
+                    {
+                        //Clear pending mouse states
+                        if (this.pendingInputStates && Object.keys(this.pendingInputStates).length > 0)
+                        {
+                            for (var key in this.pendingInputStates)
+                            {
+                                if (this.pendingInputStates[key].keyboard)
+                                {
+                                    //Set mouse to false
+                                    this.pendingInputStates[key].mouse = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            //Delete all pending mouse states
+            if (this.pendingInputStates && Object.keys(this.pendingInputStates).length > 0)
+            {
+                for (var key in this.pendingInputStates)
+                {
+                    if (this.pendingInputStates[key].keyboard && this.pendingInputStates[key].multiplier == 0)
+                    {
+                        //Set mouse to false
+                        this.pendingInputStates[key].mouse = false;
+                    }
+                }
+            }
+        }
     },
 
     onKeyPressInternal : function(event)
@@ -524,17 +717,124 @@ var InputAPI = Class.$extend(
 
         // Track currenly held down keys
         this.keyboard.repeat = false;
+
+        this.clearPendingInputStates();
+
         if (event.type === "keydown")
         {
             if (this.keyboard.pressed[this.keyboard.key] === true)
+            {
                 this.keyboard.repeat = true;
+            }
             else
+            {
                 this.keyboard.pressed[this.keyboard.key] = true;
+            }
+
+            //Handle input states
+            if (this.inputStates.length > 0)
+            {
+                for (var i = 0; i < this.inputStates.length; i++) {
+
+                    if (this.inputStates[i].keyBindings.length == 0)
+                        continue;
+
+                    if (this.arraysEqual(Object.keys(this.keyboard.pressed), this.inputStates[i].keyBindings))
+                    {
+                        var istate = this.inputStates[i];
+                        var iname = istate.name;
+
+                        if (this.pendingInputStates && this.pendingInputStates[iname])
+                        {
+                            this.pendingInputStates[iname].keyboard = true;
+                            if (this.pendingInputStates[iname].mouse)
+                            {
+                                //Count multiplier
+                                if (istate.multiplier > 0)
+                                {
+                                    this.pendingInputStates[iname].multiplier++;
+                                    if (this.pendingInputStates[iname].multiplier == istate.multiplier)
+                                    {
+                                        istate.actionSignal.dispatch(this.keyboard); //Dispatch
+                                        delete this.pendingInputStates[iname];
+                                    }
+                                }
+                                else
+                                {
+                                    istate.actionSignal.dispatch(this.keyboard); //Dispatch
+                                }
+
+                            }
+                        }
+                        else
+                        {
+                            //No mouse bindings, no timeslot
+                            if (istate.mouseDown == -1 && istate.multiplier == 0) // && istate.timeslot == 0)
+                            {
+                                istate.actionSignal.dispatch(this.keyboard); //Dispatch
+                            }
+
+                            if (istate.timeslot > 0)
+                            {
+                                //Add to pendings
+                                var imouse = true;
+                                var ikeyboard = true;
+                                var itimeslot = 0;
+                                var imultiplier = 0;
+                                if (istate.multiplier > 0)
+                                    imultiplier = 1;
+
+                                if (istate.timeslot > 0)
+                                {
+                                    itimeslot = Date.now();
+                                    itimeslot += istate.timeslot;
+                                }
+
+                                if (istate.mouseDown == 1 || istate.mouseDown == 2 || istate.mouseDown == 3)
+                                {
+                                    imouse = false;
+                                }
+                                this.pendingInputStates[iname] = { mouse : imouse, keyboard : ikeyboard, timeslot : itimeslot, multiplier : imultiplier, inputstate: istate};
+                            }
+                        }
+                    }
+                    else
+                    {
+                        //Clear pending keyboard states
+                        if (this.pendingInputStates && Object.keys(this.pendingInputStates).length > 0)
+                        {
+                            for (var key in this.pendingInputStates)
+                            {
+                                 if (this.pendingInputStates[key].mouse)
+                                {
+                                    //Set keyboard to false
+                                    this.pendingInputStates[key].keyboard = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
         }
         else
+        {
             delete this.keyboard.pressed[this.keyboard.key];
-
+            //Delete all pending keyboard states
+            if (this.pendingInputStates && Object.keys(this.pendingInputStates).length > 0)
+            {
+                for (var key in this.pendingInputStates)
+                {
+                    if (this.pendingInputStates[key].mouse)
+                    {
+                        //Set keyboard to false
+                        this.pendingInputStates[key].keyboard = false;
+                    }
+                }
+            }
+        }
     },
+
 
     characterForKeyCode : function(keyCode)
     {
@@ -547,6 +847,21 @@ var InputAPI = Class.$extend(
         // Convert from char code
         /// @todo Fix non ascii keys
         return String.fromCharCode(keyCode).toLowerCase();
+    },
+
+
+    sortInputStates : function(is1, is2) //Sort by priority
+    {
+        if (is1.priority > is2.priority)
+            return -1;
+        if (is1.priority < is2.priority)
+            return 1;
+
+        return 0;
+    },
+
+    arraysEqual : function(arr1, arr2){
+        return arr1.toString() === arr2.toString();
     }
 });
 

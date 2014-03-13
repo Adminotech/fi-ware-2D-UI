@@ -175,3 +175,181 @@ Get hold of automatically created plugin by its name and start listening the sig
 	}
 
 To find out the data touch/event -object please look at the TouchInputPlugin.js -file.  
+
+## Input Abstraction ##
+InputAPI contains implementation where user can register/unregister and update input contexts with parametrized conditions. The implementation is built up as InputState -class. User can register 0-n InputState objects to InputAPI. Once registering succees a signal is given as return value so user can hook the signal to match own purposes. For example if user states pressing 'w' and 'f' together means 'forward' and the conditions are true InputAPI fires a signal connected to the InputState. Now user can decide what to do when the signal has fired.
+
+InputState -class is described below: 
+
+	/**
+    Provides input state for abstraction
+    @class InputState
+    @constructor
+	*/
+
+	var InputState = Class.$extend(
+	{
+
+	    __init__ : function(params)
+	    {
+	
+	        this.name = params.name || ""; //Indexing property. Has to be unique within InputAPI context.
+	        this.keyBindings = params.keyBindings || null;
+	        this.mouseDown = params.mouseDown || null;
+	        this.timeslot = params.timeslot || 0;
+	        this.priority = params.priority || 100;
+	        this.multiplier = params.multiplier || 0;
+	        this.actionSignal = null;
+	
+	    },
+	
+	    __classvars__ :
+	    {
+	        Mouse :
+	        {
+	            LEFT_DOWN : 1,
+	            RIGHT_DOWN : 2,
+	            MIDDLE_DOWN : 3
+	        }
+	
+	    },
+	
+	    reset : function()
+	    {
+	        this.actionSignal.removeAll();
+	    },
+	
+	    setName : function(paramName)
+	    {
+	        if (paramName)
+	            this.name = paramName;
+	    },
+	
+	    setKeyBindings : function(paramKeyBindings)
+	    {
+	        if (paramKeyBindings)
+	            this.keyBindings = paramKeyBindings;
+	    },
+	
+	    setMouseDown : function(paramMouseDown)
+	    {
+	        if (paramMouseDown)
+	            this.mouseDown = paramMouseDown;
+	    },
+	
+	    setTimeslot : function(paramTimeslot)
+	    {
+	        var tsval = parseInt(paramTimeslot);
+	        if (isNaN(tsval))
+	        {
+	            console.log("[InputState] Time slot update failed. Value must be between 0 and 5000 milliseconds.");
+	            return false;
+	        }
+	
+	        if (tsval >= 0 && tsval <= 5000)
+	        {
+	            this.timeslot = tsval;
+	        }
+	        else
+	        {
+	            console.log("[InputState] Time slot update failed. Value must be between 0 and 5000 milliseconds.");
+	            return false;
+	        }
+	    },
+	
+	    setPriority : function(paramPriority)
+	    {
+	        var prval = parseInt(paramPriority);
+	        if (isNaN(prval))
+	        {
+	            console.log("[InputState] Priority update failed. Value must be between 0 and 100.");
+	            return false;
+	        }
+	        if (prval >= 0 && prval <= 100)
+	        {
+	            this.priority = prval;
+	        }
+	        else
+	        {
+	            console.log("[InputState] Priority update failed. Value must be between 0 and 100.");
+	            return false;
+	        }
+	    },
+	
+	    setMultiplier : function(paramMultiplier)
+	    {
+	
+	        var mpval = parseInt(paramMultiplier);
+	        if (isNaN(mpval))
+	        {
+	            console.log("[InputState] Multiplier update failed. Value must be between 0 and 5.");
+	            return false;
+	        }
+	
+	        if (mpval >= 0 && mpval <= 5)
+	        {
+	            if (this.timeslot == 0)
+	            {
+	                console.log("[InputState] Time slot cannot be 0 if multiplier is set");
+	                return false;
+	            }
+	
+	            this.multiplier = mpval;
+	        }
+	        else
+	        {
+	            console.log("[InputState] Multiplier update failed. Value must be between 0 and 5.");
+	            return false;
+	        }
+	    }
+	});
+
+### Creating an InputState ###
+To start using the InputState have a look at the InputState.html file in the test folder. This file shows how to use the input abstraction with the InputState -class. Please follow the guide of InputAPI how to create an html page. Then in addition include the needed InputState.js -file.
+
+	<!-- InputState -->
+	<script src="../src/InputState.js"></script> 
+
+At first instantiate InputAPI as guided in the InputAPI -section and create an InputState: 
+
+	var inputAPI = new InputAPI({
+	     //Give container for event registering. Not mandatory. Register can be done manually.
+	     container: "#my-container"
+	});
+	
+	var inputState = new InputState ({
+		name : "Name of my input state",
+		keyBindings : ['s','w'], //Keybindings as string array
+		mouseDown : InputState.Mouse.LEFT_DOWN, //Mouse conditions LEFT_DOWN, MIDDLE_DOWN, RIGHT_DOWN
+		timeslot : 0, //Time slot within the given conditions must be true. 0 - 5000 milliseconds, where 0 means no time slot
+		priority : 100, //Priority 0 - 100 representing percentage of importance
+		multiplier : 0 //Multiplier 0 - 5. How many times the conditions must be true within given time slot 
+	});
+
+Create an event handler and hook the output e.g. to some div -element on your html -page: 
+
+	function onInputSignal(event)
+	{
+	     $('#my-container').prepend("InputState "+inputState.name+" fired!");
+	}
+
+Register the created InputState. If InputState is well formed InputAPI returns a signal, otherwise false: 
+
+	//Register InputState
+	var inputStateSignal = inputAPI.registerInputState(inputState);
+
+Hook the signal: 
+
+	if (inputStateSignal)
+	{
+	     inputStateSignal.add(onInputSignal);
+	}
+	else
+	{
+	     console.log("InputState has invalid values.");
+	}
+
+### Update existing InputState ###
+Change the values of your already registered InputState and update the state: 
+	
+	inputAPI.updateInputState(inputState);
