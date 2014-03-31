@@ -103,7 +103,7 @@ var InputState = Class.$extend(
             return false;
         }
 
-        if (mpval >= 0 && mpval <= 5)
+        if (mpval > 0 && mpval <= 5)
         {
             if (this.timeslot == 0)
             {

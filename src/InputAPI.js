@@ -1,4 +1,5 @@
 
+
 /**
     Provides mouse and keyboard input state and events.
     @class InputAPI
@@ -376,6 +377,10 @@ var InputAPI = Class.$extend(
 
     updateInputState : function(inState)
     {
+
+        this.clearPendingInputStates();
+        this.pendingInputStates = {};
+
         if (this.inputStates.length == 0)
         {
             console.log("[InputAPI]: Cannot update input state. Please register it first");
@@ -403,11 +408,13 @@ var InputAPI = Class.$extend(
     clearPendingInputStates : function()
     {
         if (this.pendingInputStates && Object.keys(this.pendingInputStates).length > 0)
-        for (var key in this.pendingInputStates)
         {
-            if (this.pendingInputStates[key].timeslot != 0 && this.pendingInputStates[key].timeslot < Date.now())
+            for (var key in this.pendingInputStates)
             {
-                delete this.pendingInputStates[key];
+                if (this.pendingInputStates[key].timeslot != 0 && this.pendingInputStates[key].timeslot < Date.now())
+                {
+                    delete this.pendingInputStates[key];
+                }
             }
         }
     },
@@ -587,7 +594,6 @@ var InputAPI = Class.$extend(
 
                     if (mdown == istate.mouseDown)
                     {
-
                         if (this.pendingInputStates && this.pendingInputStates[iname])
                         {
                             this.pendingInputStates[iname].mouse = true;
@@ -666,6 +672,7 @@ var InputAPI = Class.$extend(
             {
                 for (var key in this.pendingInputStates)
                 {
+                    //if (this.pendingInputStates[key].multiplier == 0)
                     if (this.pendingInputStates[key].keyboard && this.pendingInputStates[key].multiplier == 0)
                     {
                         //Set mouse to false
@@ -794,6 +801,7 @@ var InputAPI = Class.$extend(
                                 {
                                     imouse = false;
                                 }
+
                                 this.pendingInputStates[iname] = { mouse : imouse, keyboard : ikeyboard, timeslot : itimeslot, multiplier : imultiplier, inputstate: istate};
                             }
                         }
@@ -805,7 +813,7 @@ var InputAPI = Class.$extend(
                         {
                             for (var key in this.pendingInputStates)
                             {
-                                 if (this.pendingInputStates[key].mouse)
+                                if (this.pendingInputStates[key].mouse)
                                 {
                                     //Set keyboard to false
                                     this.pendingInputStates[key].keyboard = false;
@@ -825,6 +833,7 @@ var InputAPI = Class.$extend(
             {
                 for (var key in this.pendingInputStates)
                 {
+
                     if (this.pendingInputStates[key].mouse)
                     {
                         //Set keyboard to false

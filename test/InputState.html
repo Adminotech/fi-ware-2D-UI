@@ -156,6 +156,12 @@ function createInputState()
 		return false;
 	}
 
+	if (keyset == false && mouseset == false)
+	{
+		$("#is-error").html("Please set either key bindings or mouse condition.");
+		return false;
+	}
+
 	if (inputState)
 	{
 		//Update
