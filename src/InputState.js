@@ -36,24 +36,28 @@ var InputState = Class.$extend(
         this.actionSignal.removeAll();
     },
 
+    //Set name of the input state. Name can represent what the action should do e.g. Move forward.
     setName : function(paramName)
     {
         if (paramName)
             this.name = paramName;
     },
 
+    //Set keybindings in string array e.g. [w] representing which keys must be pressed.
     setKeyBindings : function(paramKeyBindings)
     {
         if (paramKeyBindings)
             this.keyBindings = paramKeyBindings;
     },
 
+    //Set the pressed mouse button value.
     setMouseDown : function(paramMouseDown)
     {
         if (paramMouseDown)
             this.mouseDown = paramMouseDown;
     },
 
+    //Set time slot within the given mouse, keyboard and multiplier conditions must be true. 0 - 5000 milliseconds, where 0 means no time slot.
     setTimeslot : function(paramTimeslot)
     {
         var tsval = parseInt(paramTimeslot);
@@ -74,6 +78,7 @@ var InputState = Class.$extend(
         }
     },
 
+    //Set priority for this inputState. If priority is 100 the state is handled first. If the priority is 0 the state is handled last.
     setPriority : function(paramPriority)
     {
         var prval = parseInt(paramPriority);
@@ -93,6 +98,8 @@ var InputState = Class.$extend(
         }
     },
 
+    //Set multiplier from 0 to 5. How many times either mouse or keyboard conditions must be true within given time slot. E.g. if you give multiplier 2, timeslot 500 and mouse
+    //condition says press LEFT_DOWN, the event is fired when user presses mouse left twice within 500 milliseconds.
     setMultiplier : function(paramMultiplier)
     {
 
