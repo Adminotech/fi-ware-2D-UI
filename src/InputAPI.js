@@ -81,6 +81,21 @@ var InputAPI = Class.$extend(
                 @static
             */
             isOpera     : navigator !== undefined ? navigator.userAgent.indexOf("Presto") > -1 : false,
+
+            isMobileAndroid: navigator !== undefined ? navigator.userAgent.match(/Android/i) != null : false,
+
+            isMobileBlackBerry: navigator !== undefined ? navigator.userAgent.match(/BlackBerry/i) != null : false,
+            
+            isMobileiOS: navigator !== undefined ? navigator.userAgent.match(/iPhone|iPad|iPod/i) != null : false,
+            
+            isMobileOpera: navigator !== undefined ? navigator.userAgent.match(/Opera Mini/i) != null : false,
+
+            isMobileWindows: navigator !== undefined ? navigator.userAgent.match(/IEMobile/i) != null || navigator.userAgent.match(/WPDesktop/i) != null : false,
+
+            isMobile: function()
+            {
+                return (this.isMobileAndroid || this.isMobileiOS || this.isMobileBlackBerry || this.isMobileOpera || this.isMobileWindows);
+            }
         };
 
         /**
@@ -213,15 +228,141 @@ var InputAPI = Class.$extend(
         //Init signals
         this.Signal = signals.Signal;
         //Key signals
+
+        /**
+            A signal for registering to all key events. See {{#crossLink "InputAPI/KeyEvent:event"}}{{/crossLink}} for event data.
+            @example
+                function onKeyEvent(event)
+                {
+                    // event === KeyEvent
+                }
+
+                inputAPI.keyEvent.add(onKeyEvent);
+
+            @property keyEvent
+            @type {Signal}
+        */
         this.keyEvent = new this.Signal();
+
+        /**
+            A signal for registering to key press events. See {{#crossLink "InputAPI/KeyEvent:event"}}{{/crossLink}} for event data.
+            @example
+                function onKeyPress(event)
+                {
+                    // event === KeyEvent
+                }
+
+                inputAPI.keyPress.add(onKeyPress);
+
+            @property keyPress
+            @type {Signal}
+        */
         this.keyPress = new this.Signal();
+
+        /**
+            A signal for registering to key press events. See {{#crossLink "InputAPI/KeyEvent:event"}}{{/crossLink}} for event data.
+            @example
+                function onKeyRelease(event)
+                {
+                    // event === KeyEvent
+                }
+
+                inputAPI.keyRelease.add(onKeyRelease);
+
+            @property keyRelease
+            @type {Signal}
+        */
         this.keyRelease = new this.Signal();
         //Mouse signals
+
+        /**
+            A signal for registering to all mouse events. See {{#crossLink "InputAPI/MouseEvent:event"}}{{/crossLink}} for event data.
+            @example
+                function onMouseEvent(event)
+                {
+                    // event === MouseEvent
+                }
+
+                inputAPI.mouseEvent.add(onMouseEvent);
+
+            @property mouseEvent
+            @type {Signal}
+        */
         this.mouseEvent = new this.Signal();
+
+        /**
+            A signal for registering to mouse move events. See {{#crossLink "InputAPI/MouseEvent:event"}}{{/crossLink}} for event data.
+            @example
+                function onMouseMove(event)
+                {
+                    // event === MouseEvent
+                }
+
+                inputAPI.mouseMove.add(onMouseMove);
+
+            @property mouseMove
+            @type {Signal}
+        */
         this.mouseMove = new this.Signal();
+
+        /**
+            A signal for registering to mouse button presses. See {{#crossLink "InputAPI/MouseEvent:event"}}{{/crossLink}} for event data.
+            @example
+                function onMousePress(event)
+                {
+                    // event === MouseEvent
+                }
+
+                inputAPI.mousePress.add(onMousePress);
+
+            @property mousePress
+            @type {Signal}
+        */
         this.mousePress = new this.Signal();
+
+        /**
+            A signal for registering to mouse button releases. See {{#crossLink "InputAPI/MouseEvent:event"}}{{/crossLink}} for event data.
+            @example
+                function onMouseRelease(event)
+                {
+                    // event === MouseEvent
+                }
+
+                inputAPI.mouseRelease.add(onMouseRelease);
+
+            @property mouseRelease
+            @type {Signal}
+        */
         this.mouseRelease = new this.Signal();
+
+        /**
+            A signal for registering to mouse button clicks. See {{#crossLink "InputAPI/MouseEvent:event"}}{{/crossLink}} for event data.
+            @example
+                function onMouseClick(event)
+                {
+                    // event === MouseEvent
+                }
+
+                inputAPI.mouseClick.add(onMouseClick);
+
+            @property mouseClick
+            @type {Signal}
+        */
         this.mouseClick = new this.Signal();
+
+        /**
+            A signal for registering to mouse wheel events. See {{#crossLink "InputAPI/MouseEvent:event"}}{{/crossLink}} for event data.
+            @example
+                function onMouseWheel(event)
+                {
+                    // event === MouseEvent
+                }
+
+                inputAPI.mouseWheel.add(onMouseWheel);
+
+            @property mouseWheel
+            @type {Signal}
+        */
         this.mouseWheel = new this.Signal();
 
         //If container is present, register events
@@ -277,6 +418,10 @@ var InputAPI = Class.$extend(
         }
     },
 
+    /**
+        Removes all registered event listeners and resets all plugins
+        @method reset
+    */
     reset : function()
     {
         //Keyboard signals
@@ -418,6 +563,14 @@ var InputAPI = Class.$extend(
             }
         }
     },
+
+    /**
+        Get input plugin.
+
+        @method getPlugin
+        @param {String} name Name of the plugin.
+        @return {IInputPlugin}
+    */
 
     getPlugin : function(pluginName)
     {
@@ -875,6 +1028,14 @@ var InputAPI = Class.$extend(
 });
 
 
+/**
+    Input plugin interface.
+
+    @class IInputPlugin
+    @constructor
+    @param {String} name Name of the plugin.
+*/
+
 var IInputPlugin = Class.$extend(
 {
     __init__ : function(name)
@@ -921,5 +1082,311 @@ var IInputPlugin = Class.$extend(
 
     reset : function()
     {
+    }
+});
+
+
+/**
+    Input event interface.
+
+    @class IInputEvent
+    @constructor
+    @param {String} name Event name.
+*/
+var IInputEvent = Class.$extend(
+{
+    __init__ : function(name)
+    {
+        if (typeof name !== "string")
+        {
+            console.error("IInputEvent cannot be constructed without a name. Given:", name);
+            return;
+        }
+
+        /*
+            Event name.
+            @property name
+            @type String
+        */
+        this.name = name;
+        /*
+            Event type.
+            @property type
+            @type String
+        */
+        this.type = "";
+        /*
+            Event type id.
+            @property typeId
+            @type Number
+        */
+        this.typeId = IInputEvent.Type.Unknown;
+        /*
+            Event absolute position on the X axis.
+            @property x
+            @type Number
+        */
+        this.x = null;
+        /*
+            Event absolute position on the Y axis.
+            @property y
+            @type Number
+        */
+        this.y = null;
+        /*
+            Event absolute position on the Z axis.
+            Only used for 3D input devices/sensors.
+            @property z
+            @type Number
+        */
+        this.z = null;
+        /*
+            Event relative movement on the X axis since the last event.
+            @property relativeX
+            @type Number
+        */
+        this.relativeX = 0;
+        /*
+            Event relative movement on the Y axis since the last event.
+            @property relativeY
+            @type Number
+        */
+        this.relativeY = 0;
+        /*
+            Event relative movement on the Z axis since the last event.
+            Used for eg. mouse wheel if a 2D input device.
+            @property relativeZ
+            @type Number
+        */
+        this.relativeZ = 0;
+        /*
+            Original event that was used to construct this input event.
+            @property originalEvent
+            @type Object
+        */
+        this.target = null;
+        /*
+            HTML element id that the event occurred on.
+            @property targetId
+            @type String
+        */
+        this.targetId = "";
+        /*
+            HTML node name e.g. "canvas" or "div".
+            You can check for "canvas" to know the event occurred
+            on top of the 3D rendering and not on a UI element.
+            @property targetNodeName
+            @type String
+        */
+        this.targetNodeName = "";
+        /*
+            Original event that was used to construct this input event.
+            @property originalEvent
+            @type Object
+        */
+        this.originalEvent = null;
+
+        // Internal reference to prevert default if differs or not in originalEvent.
+        this._preventDefaultFunction = null;
+    },
+
+    __classvars__ :
+    {
+        Type :
+        {
+            Unknown : -1
+        }
+    },
+
+    toString : function()
+    {
+        return "InputEvent{ " + this.basePropertiesToString() + " }";
+    },
+
+    clear : function()
+    {
+        this.clearPosition();
+    },
+
+    basePropertiesToString : function()
+    {
+        return "typeId:" + this.typeId +
+            " type:" + this.type +
+            " x:" + this.x +
+            " y:" + this.y +
+            " relativeX:" + this.relativeX +
+            " relativeY:" + this.relativeY +
+            " relativeZ:" + this.relativeZ +
+
+            " target:" + this.targetNodeName + (this.targetId !== "" ? "#" + this.targetId : "") +
+            " originalEvent:" + (this.originalEvent != null ? "valid" :"null");
+    },
+
+    /**
+        Suppresses the orginal event via preventDefault() and preventPropagation() if applicaple.
+        @method suppress
+        @param {Boolean} [preventDefault=true] If preventDefault() should be invoked.
+        @param {Boolean} [preventPropagation=true] If preventPropagation() should be invoked.
+        @return {Boolean} True if original event was valid and successfully suppressed default and/or propagation.
+    */
+    suppress : function(preventDefault, preventPropagation)
+    {
+        var success = false;
+        if (typeof this.originalEvent === "object")
+        {
+            preventDefault = (typeof preventDefault === "boolean" ? preventDefault : true);
+            if (preventDefault)
+            {
+                if (typeof this._preventDefaultFunction === "function")
+                {
+                    this._preventDefaultFunction();
+                    success = true;
+
+                    /* A custom prevent default has been set. If preventPropagation is not defined
+                       default it to false. We will assume this custom prevention handler also
+                       takes care of propagation. */
+                    if (typeof preventPropagation !== "boolean")
+                        preventPropagation = false;
+                }
+                else if (typeof this.originalEvent.preventDefault === "function")
+                {
+                    this.originalEvent.preventDefault();
+                    success = true;
+                }
+            }
+
+            preventPropagation = (typeof preventPropagation === "boolean" ? preventPropagation : true);
+            if (preventPropagation && typeof this.originalEvent.preventPropagation === "function")
+            {
+                this.originalEvent.preventPropagation();
+                success = true;
+            }
+        }
+        return success;
+    },
+
+    /**
+        Returns if provided element is the target of this input event.
+        You can pass in a DOM Element, jQuery element or a element id/node name string.
+        @method isTarget
+        @param {Element|jQuery element/selector object|String} Any number of parameters are accepted, eg. isTarget("div", "h1").
+        @return {Boolean}
+    */
+    isTarget : function()
+    {
+        var result = false;
+        for (var i = 0; i < arguments.length; i++)
+        {
+            var element = arguments[i];
+            if (typeof element === "string")
+                result = (element === this.targetId || element === this.targetNodeName);
+            else if (element instanceof Element)
+                result = (element.id === this.targetId && element.localName === this.targetNodeName);
+            else if (typeof element === "object" && typeof element.jquery === "string" && typeof element.get === "function")
+            {
+                if (element.length > 0)
+                    result = this.isTarget(element.get(0));
+                else
+                    console.error("isTarget: Passed an empty jQuery selector:", element.selector);
+            }
+            else
+                console.error("isTarget: Invalid element parameter:", element);
+
+            if (result === true)
+                return result;
+        }
+        return result;
+    },
+
+    /**
+        Sets original event and tries to read target id and node name from it.
+        @method setOriginalEvent
+        @param {Object} event Original event.
+        @return {Boolean} True if id and/or node name was read from the event.
+    */
+    setOriginalEvent : function(e, type)
+    {
+        this.originalEvent = e;
+
+        /* Generic target element read. Override this function if 
+           your event is not read properly with this. */
+        if (typeof e.target === "object")
+        {
+            var hasId = (typeof e.target.id === "string");
+            var hasNodeName = (typeof e.target.localName === "string");
+            this.targetId = (hasId ? e.target.id : "");
+            this.targetNodeName = (hasNodeName ? e.target.localName : "");
+            this.target = e.target;
+            return (hasId || hasNodeName);
+        }
+        else
+        {
+            this.targetNodeName = "";
+            this.targetId = "";
+            this.target = null;
+            return false;
+        }
+    },
+
+    /**
+        Clears absolute and relative position to null. This makes
+        automatic relative change tracking work correctly. Needed
+        if there are no "contant" feed of events, eg. touch events.
+        And eg. mouse should not require this as we always get move
+        events.
+        @method clearPosition
+    */
+    clearPosition : function()
+    {
+        this.setPositionAxis("x", null);
+        this.setPositionAxis("y", null);
+        this.setPositionAxis("z", null);
+    },
+
+    /**
+        Clears relative position to be zero. Can be useful
+        for reseting 'end' events to not have any movement.
+        @method clearRelativePosition
+    */
+    clearRelativePosition : function()
+    {
+        this.relativeX = this.relativeY = this.relativeZ = 0;
+    },
+
+    /**
+        Set x, y, z absolute and update relativeX, relativeY, relativeZ.
+        Non 'number' values will result in a null axist and zero relative axis.
+        @method setPosition
+        @param {Number|undefined} x
+        @param {Number|undefined} y
+        @param {Number|undefined} z
+    */
+    setPosition : function(x, y, z)
+    {
+        this.setPositionAxis("x", x);
+        this.setPositionAxis("y", y);
+        this.setPositionAxis("z", z);
+    },
+
+    /**
+        Set axis absolute and update relative value.
+        Non 'number' values will result in a null axist and zero relative axis.
+        @method setPositionAxis
+        @param {String} axis Value must be "x", "y" or "z".
+        @param {Number|undefined} value
+    */
+    setPositionAxis: function(axis, value)
+    {
+        var relativeAxis = "relative" + axis.toUpperCase();
+        if (typeof value === "number")
+        {
+            this[relativeAxis] = (typeof this[axis] === "number" ? value - this[axis] : 0);
+            this[axis] = value;
+        }
+        else
+        {
+            this[relativeAxis] = 0;
+            this[axis] = null;
+        }
     }
 });
