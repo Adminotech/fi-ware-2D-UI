@@ -42,7 +42,7 @@ inputAPI.keyEvent.add(onKeyEvent);
 var touch = inputAPI.getPlugin("Touch");
 if (touch)
 {
-	touch.pan.add(onTouchEvent);
+	touch.touchEvent.add(onTouchEvent);
 }
 var gamepad = inputAPI.getPlugin("Gamepad");
 if (gamepad)

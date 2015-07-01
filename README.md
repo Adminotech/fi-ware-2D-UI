@@ -171,7 +171,10 @@ Get hold of automatically created plugin by its name and start listening the sig
 	
 	function onTouchEvent (obj, event)
 	{
-	    $('#input-console').prepend("<b style=\"color: green;\">Touch: "+obj.type+"</b>: X="+obj.startx+", Y="+obj.starty+", RelativeX="+obj.relativeX+", RelativeY="+obj.relativeY+", Moved="+obj.moved+"<br>");
+		if (obj.isMultiTouch)
+			$('#input-console').prepend("<b style=\"color: blue;\">MultiTouch: "+obj.type+"</b>: X="+obj.x+", Y="+obj.y+", RelativeX="+obj.relativeX+", RelativeY="+obj.relativeY+", Moved="+obj.distance+", rotate="+obj.angle+"<br>");
+		else
+			$('#input-console').prepend("<b style=\"color: green;\">Touch: "+obj.type+"</b>: X="+obj.x+", Y="+obj.y+", RelativeX="+obj.relativeX+", RelativeY="+obj.relativeY+", Moved="+obj.distance+", rotate="+obj.angle+"<br>");
 	}
 
 To find out the data touch/event -object please look at the TouchInputPlugin.js -file.  
